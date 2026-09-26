@@ -117,6 +117,11 @@ def _fmt_patches(patches: list[dict]) -> str:
                   if ev.get("baseline_score") is not None else "")
         out.append(f"- on v{p.get('base_version')}: {p.get('status')}{scores}. ops {describe_ops(p)}. "
                    f"rationale: {p.get('rationale', '')}" + (f" REASON: {p['reason']}" if p.get("reason") else ""))
+        for s in ev.get("per_seed", []):
+            if s.get("candidate_incidents") or s.get("candidate_alive") is False:
+                out.append(f"    held-out seed {s['seed']}: baseline {s['baseline']:.1f} -> candidate {s['candidate']:.1f}"
+                           f"{' (DIED)' if not s.get('candidate_alive', True) else ''}; incidents: "
+                           + "; ".join(s.get("candidate_incidents", [])[:6]))
     return "\n".join(out)
 
 

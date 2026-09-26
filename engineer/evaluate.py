@@ -62,6 +62,9 @@ def evaluate(
         "baseline_alive": base_by_seed[r.seed].metrics.alive, "candidate_alive": r.metrics.alive,
         "candidate_mission_id": m.mission_id,
         "candidate_metrics": r.metrics.model_dump(),
+        # What went wrong on this seed, so the next Engineer call learns why a patch was rejected.
+        "candidate_incidents": [f"sol {e.get('sol')} {e.get('type')} {e.get('details', {})}"
+                                for e in sorted(store.get_events(d, m.incident_event_ids), key=lambda e: e.get("sol", 0))],
     } for r, m in zip(cand_eval.per_seed, cand)]
     patch_eval = PatchEval(seeds=seeds, baseline_score=base_eval.score, candidate_score=cand_eval.score,
                            per_seed=per_seed)
