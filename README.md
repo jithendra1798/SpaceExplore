@@ -35,10 +35,31 @@ Atlas is the rover's memory and the harness's version control. Every arrow in th
 
 | Workstream | Owner | Brief |
 | --- | --- | --- |
-| A · Planet Simulator + Mission Control UI | _TBD_ | [A-planet-sim.md](docs/workstreams/A-planet-sim.md) |
+| A · Planet Simulator + Mission Control UI | manikanta | [A-planet-sim.md](docs/workstreams/A-planet-sim.md) |
 | B · Explorer Agent + Harness Runtime | Jithendra | [B-explorer-harness.md](docs/workstreams/B-explorer-harness.md) |
-| C · Engineer Agent + Evaluation | _TBD_ | [C-engineer-eval.md](docs/workstreams/C-engineer-eval.md) |
-| D · MongoDB Atlas + Demo | _TBD_ | [D-atlas-demo.md](docs/workstreams/D-atlas-demo.md) |
+| C · Engineer Agent + Evaluation | lambdabypi | [C-engineer-eval.md](docs/workstreams/C-engineer-eval.md) |
+| D · MongoDB Atlas + Demo | Kavitha | [D-atlas-demo.md](docs/workstreams/D-atlas-demo.md) |
+
+## Results from today's runs (Atlas sandbox, planet seed 42)
+
+| Harness | Author | Held-out score (seeds 101–103) | Live on seed 42 |
+| --- | --- | --- | --- |
+| v1 | human baseline | −24.2 | Fell at a crater edge in the dust storm and died on sol 13 (score −45.5) |
+| v2 | Engineer | −5.2, **rejected** by constitution rule C3: its rover died on seed 102, where the baseline survived | Sheltered through the storm and survived 30 sols (score +53.0) |
+| v3 | Engineer, from v1's crater-edge fall | **+14.0, accepted**, now active | |
+
+The Engineer's v3 patch: enable `probe_terrain`, add an `avoid_terrain` guardrail for `crater_edge`, and add a rule to probe crater edges before crossing them.
+
+## Run the demo
+
+```bash
+uv run uvicorn web.server:app --port 8765                                   # Mission Control UI
+uv run python -m explorer.run --version 1 --seed 42 --sols 30 --sol-delay 1  # v1 hits the storm
+uv run python -m engineer.step --latest                                     # Engineer: diagnose, patch, evaluate
+uv run python -m engineer.watch                                             # or: wake on every live incident
+uv run python -m explorer.run --version active --seed 42 --sols 30 --sol-delay 1
+uv run pytest                                                               # 35 tests
+```
 
 ## Setup
 
