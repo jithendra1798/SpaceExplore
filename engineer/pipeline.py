@@ -76,10 +76,11 @@ def improve(
         ok, reason, patch_eval, cand_eval = evaluate(d, base, candidate, runner, runner_name, seeds, planet, max_sols)
     except Exception as e:  # a crashed mission must not leave the patch stuck in "evaluating"
         traceback.print_exc(file=sys.stderr)
+        # An infrastructure failure says nothing about the patch: flag it and free the version number.
         reason = f"evaluation failed: {e.__class__.__name__}: {e}"
-        store.update_patch(d, pid, status="rejected", reason=reason)
-        store.set_harness_fields(d, version, status="rejected")
-        return Outcome("error", pid, base.version, version, reason=reason)
+        store.update_patch(d, pid, status="rejected", reason=reason, error=True, candidate_version=None)
+        store.delete_harness(d, version)
+        return Outcome("error", pid, base.version, None, reason=reason)
 
     eval_doc = patch_eval.model_dump(mode="python")
     store.set_harness_fields(d, version, eval=cand_eval.model_dump(mode="python"),

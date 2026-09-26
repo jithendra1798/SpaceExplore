@@ -166,6 +166,17 @@ def test_regressing_patch_is_rejected(d):
     assert store.get_harness_raw(d, 2)["status"] == "rejected"
 
 
+def test_crashed_evaluation_is_flagged_not_rejected(d):
+    def broken(*a, **k):
+        raise TypeError("unexpected keyword argument 'temperature'")
+
+    store.ensure_v1(d)
+    out = improve(d, {"_id": "e1", "mission_id": "m1", "type": "STUCK", "sol": 8}, ScriptedEngineer(), broken, "fake")
+    assert out.status == "error"
+    assert d[PATCHES].find_one({})["error"] is True
+    assert d[HARNESS].count_documents({}) == 1 and store.next_version(d) == 2
+
+
 def test_invalid_patch_is_stored_not_evaluated(d):
     class Greedy:
         name = "greedy"

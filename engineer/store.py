@@ -65,6 +65,10 @@ def set_harness_fields(d, version: int, **fields: Any) -> None:
     d[HARNESS].update_one({"version": version}, {"$set": fields})
 
 
+def delete_harness(d, version: int) -> None:
+    d[HARNESS].delete_one({"version": version, "status": "candidate"})
+
+
 def promote(d, new_version: int, old_version: int) -> None:
     # Activate first, then retire: readers sort by version, so there is never a moment with no active harness.
     d[HARNESS].update_one({"version": new_version}, {"$set": {"status": "active", "promoted_at": utcnow()}})
