@@ -64,3 +64,4 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | 3:25 PM | D | Fake UI data lives in its own database, `rover_fake` (docs still carry `fake: true`), so it cannot collide with real harness versions, wake the Engineer or leak into memory. A: run the UI with `MONGODB_DB=rover_fake` until real data lands | A |
 | 3:25 PM | D | `watch_incidents(callback, db=None)` gains an optional `db` | C |
 | 3:40 PM | B | `missions.status` can now be `"failed"`, with an `error` string, when a run crashes. Missions stuck at `running` from before 3:40 were crashes; ignore them | A, C |
+| 4:10 PM | B | Integration of D07 and D08 verified on the sandbox: live mission via `db.memory` (`$geoNear` hazards nearest-first). `$vectorSearch` needs `VOYAGE_API_KEY` in each runner's `.env`; without it B falls back to recency | B, D |
