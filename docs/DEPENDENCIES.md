@@ -58,3 +58,4 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | 3:13 PM | B | `missions` docs gain `world_source`: `"sim"` or `"fake"`. Use it to filter out runs on B's fake world | A, C |
 | 3:13 PM | B | B creates `telemetry` as a time-series collection if it is missing, so `scripts/setup_db.py` must skip it when it already exists | D |
 | 3:13 PM | B | `pyproject.toml`: pytest config added; run `uv run pytest` | All |
+| 3:40 PM | B | `missions.status` can now be `"failed"`, with an `error` string, when a run crashes. Missions stuck at `running` from before 3:40 were crashes; ignore them | A, C |

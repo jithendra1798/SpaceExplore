@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 import anthropic
+from dotenv import find_dotenv, load_dotenv
 from pydantic import ValidationError
 
 from contracts.models import DIRECTIONS, Action, HarnessConfig, Observation
@@ -27,6 +28,7 @@ class Plan:
 
 @lru_cache(maxsize=1)
 def _client() -> anthropic.Anthropic:
+    load_dotenv(find_dotenv(usecwd=True))  # callers may not have loaded .env themselves
     return anthropic.Anthropic()  # thread-safe; shared across missions
 
 
@@ -76,6 +78,7 @@ def _to_actions(raw: list, enabled: set[str]) -> tuple[list[Action], list[dict]]
 class LLMPlanner:
     def __init__(self, model: str | None = None):
         self.model = model or os.environ.get("EXPLORER_MODEL", DEFAULT_MODEL)
+        _client()  # fail fast (e.g. no ANTHROPIC_API_KEY) before any mission is recorded
 
     def plan(self, h: HarnessConfig, system: str, message: str) -> Plan:
         kwargs: dict = {}

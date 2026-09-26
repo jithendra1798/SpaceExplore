@@ -6,6 +6,8 @@ whole mission. Everything that changes per sol goes in the user message.
 
 from __future__ import annotations
 
+from collections import defaultdict
+
 from contracts.constitution import BATTERY_FLOOR
 from contracts.models import HarnessConfig, Observation
 
@@ -31,7 +33,8 @@ GUARDRAIL_DOCS = {
 
 def build_system_prompt(h: HarnessConfig) -> str:
     rules = "\n".join(f"{i}. {r.text}" for i, r in enumerate(h.rules, 1)) or "(none)"
-    rails = "\n".join(f"- [{g.id}] " + GUARDRAIL_DOCS[g.type].format(**g.params) for g in h.guardrails) or "(none)"
+    rails = "\n".join(f"- [{g.id}] " + GUARDRAIL_DOCS.get(g.type, f"{g.type} {g.params}").format_map(defaultdict(lambda: "?", g.params))
+                      for g in h.guardrails) or "(none)"
     tools = "\n".join(f"- {TOOL_DOCS[t]}" for t in h.enabled_tools())
     return f"""{h.system_prompt}
 
