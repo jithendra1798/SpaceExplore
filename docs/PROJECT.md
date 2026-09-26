@@ -48,7 +48,7 @@ flowchart LR
     E1["Engineer LLM"] --> VAL["Validate patch"]
     VAL --> EVAL["Evaluate on<br/>held-out seeds"]
   end
-  UI["D · Mission Control UI"]
+  UI["A · Mission Control UI"]
 
   W -- observation --> CTX
   GR -- actions --> W
@@ -85,10 +85,10 @@ Details: [CONTRACTS.md](CONTRACTS.md) holds every interface. [DEPENDENCIES.md](D
 
 | | Workstream | Owns | Brief |
 | --- | --- | --- | --- |
-| A | Planet Simulator | `sim/`, `web/static/map.js` | [A-planet-sim.md](workstreams/A-planet-sim.md) |
+| A | Planet Simulator + Mission Control UI | `sim/`, `web/` | [A-planet-sim.md](workstreams/A-planet-sim.md) |
 | B | Explorer Agent + Harness Runtime | `explorer/`, `contracts/models.py` | [B-explorer-harness.md](workstreams/B-explorer-harness.md) |
 | C | Engineer Agent + Evaluation | `engineer/`, `contracts/scoring.py`, `contracts/constitution.py` | [C-engineer-eval.md](workstreams/C-engineer-eval.md) |
-| D | MongoDB Atlas + UI + Demo | `db/`, `web/`, `scripts/`, README | [D-atlas-ui-demo.md](workstreams/D-atlas-ui-demo.md) |
+| D | MongoDB Atlas + Demo | `db/`, `scripts/`, README | [D-atlas-demo.md](workstreams/D-atlas-demo.md) |
 
 Each workstream codes against CONTRACTS.md with its own stubs, so nobody is blocked before the 3:15 checkpoint.
 
@@ -142,7 +142,7 @@ Each workstream codes against CONTRACTS.md with its own stubs, so nobody is bloc
 | LLM latency makes evaluation too slow | One call per sol; Haiku for the Explorer; parallel runs; cached baselines; 30-sol missions | B, C |
 | Patches do not measurably help | A tunes seeds so v1's failures are fixable; fixed seeds and temperature 0 | A, C |
 | Noisy scores | Same seeds for baseline and candidate; 5 seeds if needed | C |
-| Project reads as a dashboard | UI panels explain agent actions; demo narrated around the Engineer | D |
+| Project reads as a dashboard | UI panels explain agent actions; demo narrated around the Engineer | A, D |
 | Not built on the sandbox cluster | D verifies at kickoff | D |
 
 **Open decisions**

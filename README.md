@@ -19,10 +19,10 @@ An **Explorer** agent drives a rover across a simulated planet with sand traps, 
 
 | Workstream | Owner | Brief |
 | --- | --- | --- |
-| A · Planet Simulator | _TBD_ | [A-planet-sim.md](docs/workstreams/A-planet-sim.md) |
+| A · Planet Simulator + Mission Control UI | _TBD_ | [A-planet-sim.md](docs/workstreams/A-planet-sim.md) |
 | B · Explorer Agent + Harness Runtime | Jithendra | [B-explorer-harness.md](docs/workstreams/B-explorer-harness.md) |
 | C · Engineer Agent + Evaluation | _TBD_ | [C-engineer-eval.md](docs/workstreams/C-engineer-eval.md) |
-| D · MongoDB Atlas + UI + Demo | _TBD_ | [D-atlas-ui-demo.md](docs/workstreams/D-atlas-ui-demo.md) |
+| D · MongoDB Atlas + Demo | _TBD_ | [D-atlas-demo.md](docs/workstreams/D-atlas-demo.md) |
 
 ## Setup
 

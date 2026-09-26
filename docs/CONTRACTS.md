@@ -21,7 +21,7 @@ SpaceExplore/
 ├── explorer/               B
 ├── engineer/               C
 ├── db/                     D (Python helpers for Atlas)
-├── web/                    D (server + UI); web/static/map.js is A's
+├── web/                    A (server + UI)
 ├── scripts/                D (setup, seeding, demo helpers)
 ├── fixtures/               sample JSON anyone can use as a stub
 ├── pyproject.toml          D (uv)
@@ -406,9 +406,9 @@ def watch_incidents(callback) -> None: ...
 
 ---
 
-## 6. UI contract (A's map renderer, D's app)
+## 6. UI (A)
 
-A delivers `web/static/map.js` exporting:
+`web/static/map.js` exports:
 
 ```js
 // Draws terrain, fog of war, science, the rover and its path on a <canvas>.
@@ -421,4 +421,4 @@ export function drawPlanet(canvas, snapshot, {path, roverPos, knownTiles, events
 - `events` are drawn as markers.
 - `showTruth` reveals hidden slip and science for the replay view.
 
-D's server exposes JSON under `/api/...`. D owns the endpoint list; see [workstreams/D-atlas-ui-demo.md](workstreams/D-atlas-ui-demo.md).
+A's server exposes JSON under `/api/...`. A owns the endpoint list; see [workstreams/A-planet-sim.md](workstreams/A-planet-sim.md).
