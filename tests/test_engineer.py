@@ -80,6 +80,15 @@ def test_tool_input_outside_catalog_raises():
         patch_from_tool_input({"ops": [{"op": "delete_everything"}]}, ctx)
 
 
+def test_leaked_tool_markup_is_split_back_into_fields():
+    ctx = IncidentContext(event={"_id": "e1"}, harness=load_harness_v1())
+    p = patch_from_tool_input({
+        "diagnosis": 'Drove onto sand.</diagnosis>\n<parameter name="rationale">Probe first.',
+        "rationale": "", "lesson": "Probe sand.", "ops": [{"op": "enable_tool", "tool": "probe_terrain"}],
+    }, ctx)
+    assert (p.diagnosis, p.rationale, p.lesson) == ("Drove onto sand.", "Probe first.", "Probe sand.")
+
+
 def test_prompt_includes_rejections_and_constitution(d):
     d[PATCHES].insert_one({"base_version": 1, "status": "invalid", "reason": "C2 forbids removing g001",
                            "ops": [{"op": "remove_guardrail", "id": "g001"}], "rationale": "go faster"})

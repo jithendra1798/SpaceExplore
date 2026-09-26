@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import get_args
@@ -221,7 +222,28 @@ class LLMEngineer:
         return patch_from_tool_input(data, ctx)
 
 
+_LEAKED_PARAM = re.compile(r"</(\w+)>\s*<parameter name=\"(\w+)\">")
+
+
+def _repair_leaked_fields(data: dict) -> dict:
+    """The model sometimes writes the next tool parameter inside a string, e.g.
+    diagnosis = '... </diagnosis>\\n<parameter name="rationale">...'. Split it back out."""
+    data = dict(data)
+    for key in ("diagnosis", "rationale", "lesson"):
+        text = data.get(key)
+        if not isinstance(text, str) or not _LEAKED_PARAM.search(text):
+            continue
+        parts = _LEAKED_PARAM.split(text)  # [value, close, next_key, next_value, close, next_key, ...]
+        data[key] = parts[0].strip()
+        for i in range(2, len(parts) - 1, 3):
+            nxt, value = parts[i], re.sub(r"</\w+>\s*$", "", parts[i + 1]).strip()
+            if nxt in ("diagnosis", "rationale", "lesson") and not str(data.get(nxt) or "").strip():
+                data[nxt] = value
+    return data
+
+
 def patch_from_tool_input(data: dict, ctx: IncidentContext) -> HarnessPatch:
+    data = _repair_leaked_fields(data)
     ops, bad = [], []
     for raw in data.get("ops", []):
         try:
