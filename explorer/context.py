@@ -69,6 +69,7 @@ def build_sol_message(
     memories: list[dict],
     hazards: list[dict],
     last_signals: tuple[int, list[str]] | None,
+    drilled: set[tuple[int, int]] = frozenset(),
 ) -> str:
     parts = [
         f"SOL {obs.sol}",
@@ -77,10 +78,13 @@ def build_sol_message(
         f"Weather: tau {obs.tau:.1f} (change since yesterday {obs.tau_trend:+.1f}).",
         "Local terrain:\n" + render_local_map(obs, known_terrain),
     ]
-    if obs.signals:
-        parts.append("Anomaly signals now: " + "; ".join(obs.signals))
-    elif last_signals:
-        parts.append(f"Anomaly signals from scan on sol {last_signals[0]}: " + "; ".join(last_signals[1]))
+    fresh = lambda sigs: [s for s in sigs if not any(f"({x},{y})" in s.replace(" ", "") for x, y in drilled)]
+    if last_signals and fresh(last_signals[1]):
+        parts.append(f"Anomaly signals from scan on sol {last_signals[0]}: " + "; ".join(fresh(last_signals[1])))
+    elif fresh(obs.signals):
+        parts.append("Anomaly signals: " + "; ".join(fresh(obs.signals)))
+    if drilled:
+        parts.append("Already drilled (nothing left there): " + ", ".join(f"({x},{y})" for x, y in sorted(drilled)))
     if recent:
         parts.append("Recent sols:\n" + "\n".join(f"- {r}" for r in recent))
     if hazards:

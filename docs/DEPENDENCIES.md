@@ -21,8 +21,8 @@ Workstreams: **A** Planet Sim + UI · **B** Explorer + Harness Runtime · **C** 
 | D08 | B | `hazards_near()` using `$geoNear` | D | §5.1 | 3:15 | Filter an in-memory list of known hazards | Open | |
 | D09 | C | Change-stream helper `watch_incidents()` | D | §5.1 | 3:15 | Poll `events` every 5 s for new major or critical live events | Open | |
 | D10 | C | `run_mission()` in both eval and live modes | B | §4 | 3:30 | `engineer/fake_runner.py`: heuristic score from config (see C's workstream doc) | Delivered | 2:55 PM in `explorer/mission.py`, tested with 3 parallel eval runs on the fake world. Extra kwargs: `log_to_db`, `planner`, `fake_world`, `verbose` |
-| D11 | C | Real incident events in Atlas | B | §5, §5.2 | 3:30 | Insert the example event from CONTRACTS §5.2 by hand | Open | |
-| D12 | A | Real `missions`, `telemetry`, `events`, `map_knowledge` data | B | §5 | 3:30 | D's `scripts/seed_fake.py` | Open | |
+| D11 | C | Real incident events in Atlas | B | §5, §5.2 | 3:30 | Insert the example event from CONTRACTS §5.2 by hand | Delivered | 3:25 PM: `run_mission` writes `events` (sim events plus `GUARDRAIL_BLOCK`); verified on a local Mongo. Appears in Atlas once `.env` has the sandbox URI |
+| D12 | A | Real `missions`, `telemetry`, `events`, `map_knowledge` data | B | §5 | 3:30 | D's `scripts/seed_fake.py` | Delivered | 3:25 PM: code writes all four; verified on a local Mongo. Filter `world_source: "sim"` for the demo |
 | D13 | B | Active harness written by the Engineer | C | §3.2 | 3:45 | `db.harness.get_active_harness()` returns v1 | Open | B always reads the active version at mission start |
 | D14 | A | Real `harness_versions` and `patches` lineage | C | §3.2, §3.4 | 3:45 | Fake lineage v1 to v4 in D's `scripts/seed_fake.py` | Open | |
 | D15 | — | Planet renderer `web/static/map.js` | A | §6 | — | — | n/a | UI moved to A at 2:55 PM, so this is no longer a cross-team dependency |
@@ -55,3 +55,6 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | 2:55 PM | B | `run_mission` gains optional `log_to_db`, `planner`, `fake_world`, `verbose` | C |
 | 2:55 PM | B | `avoid_terrain` checks slip probed on any earlier sol (not only this sol): the rover probes one sol and crosses the next | C |
 | 2:55 PM | B | Telemetry docs also carry `reasoning`, `planned`, `stuck` and `events`; `blocked` holds `{guardrail_id, action, reason, rewritten_to}` | A |
+| 3:25 PM | B | `missions` docs gain `world_source`: `"sim"` or `"fake"`. Use it to filter out runs on B's fake world | A, C |
+| 3:25 PM | B | B creates `telemetry` as a time-series collection if it is missing, so `scripts/setup_db.py` must skip it when it already exists | D |
+| 3:25 PM | B | `pyproject.toml`: pytest config added; run `uv run pytest` | All |

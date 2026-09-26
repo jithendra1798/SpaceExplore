@@ -83,8 +83,8 @@ class LLMPlanner:
             kwargs["tool_choice"] = {"type": "auto"}
         else:
             kwargs["tool_choice"] = {"type": "tool", "name": "submit_plan"}
-            if "haiku" in self.model:
-                kwargs["temperature"] = 0.0
+            if "haiku" in self.model:  # SDK 1.x has no typed `temperature`; Haiku 4.5 still accepts it
+                kwargs["extra_body"] = {"temperature": 0.0}
         try:
             resp = _client().messages.create(
                 model=self.model,

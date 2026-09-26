@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from pymongo import UpdateOne
+from pymongo.errors import CollectionInvalid
 
 from contracts.models import (
     INCIDENT_SEVERITIES, Action, EventDoc, HarnessConfig, MissionResult, Mode, Observation, SimEvent, utcnow,
@@ -20,6 +21,16 @@ from explorer.context import build_sol_message, build_system_prompt
 from explorer.guardrails import enforce
 
 SIGNAL_RE = re.compile(r"\((\d+),\s*(\d+)\)\s*strength\s*([\d.]+)")
+
+
+def ensure_telemetry(db) -> None:
+    """Create `telemetry` as a time-series collection (CONTRACTS §5) if nobody has yet."""
+    if db.list_collection_names(filter={"name": TELEMETRY}):
+        return
+    try:
+        db.create_collection(TELEMETRY, timeseries={"timeField": "ts", "metaField": "meta", "granularity": "seconds"})
+    except CollectionInvalid:  # another mission created it first
+        pass
 
 
 def make_world(seed: int, planet: str = "mars", fake: bool = False):
@@ -42,6 +53,7 @@ class MissionState:
     hazards: dict[tuple[int, int], dict] = field(default_factory=dict)
     recent: list[str] = field(default_factory=list)
     last_signals: tuple[int, list[str]] | None = None
+    drilled: set[tuple[int, int]] = field(default_factory=set)
     incident_ids: list[str] = field(default_factory=list)
 
     def see(self, obs: Observation, sol: int) -> list[UpdateOne]:
@@ -62,7 +74,8 @@ class MissionState:
         for sig in self.last_signals[1]:
             if m := SIGNAL_RE.search(sig):
                 x, y, s = m.groups()
-                parsed.append((float(s), (int(x), int(y))))
+                if (int(x), int(y)) not in self.drilled:
+                    parsed.append((float(s), (int(x), int(y))))
         return max(parsed)[1] if parsed else None
 
 
@@ -94,9 +107,12 @@ def run_mission(
     state = MissionState()
 
     if db is not None:
+        if live:
+            ensure_telemetry(db)
         db[MISSIONS].insert_one({
             "_id": mission_id, "harness_version": harness.version, "seed": seed, "planet": planet,
             "mode": mode, "max_sols": max_sols, "status": "running", "started_at": utcnow(),
+            "world_source": "fake" if type(world).__module__ == "explorer.fake_world" else "sim",
             "world": world.snapshot() if live else None,
         })
 
@@ -111,7 +127,7 @@ def run_mission(
         memories = memory.recall(db, situation, list(policy.memory_kinds), policy.memory_k, planet)
         hazards = memory.hazards_near(db, mission_id, obs.pos, policy.hazards_within, state.hazards)
         message = build_sol_message(obs, state.known_terrain, state.recent[-policy.recent_sols:] if policy.recent_sols else [],
-                                    memories, hazards, state.last_signals)
+                                    memories, hazards, state.last_signals, state.drilled)
 
         if isinstance(planner, ScriptedPlanner):
             plan = planner.plan(harness, system, message, obs=obs, target=state.best_target())
@@ -133,10 +149,8 @@ def run_mission(
                 probed.append(loc)
             if o.action.tool == "scan" and o.data.get("signals") is not None:
                 state.last_signals = (result.sol, o.data["signals"])
-            if o.action.tool == "drill" and state.last_signals:  # drilled here: forget this site's signal
-                here = f"({after.pos[0]},{after.pos[1]})"
-                state.last_signals = (state.last_signals[0],
-                                      [s for s in state.last_signals[1] if here not in s.replace(" ", "")])
+            if o.action.tool == "drill":  # drilled here: never point the planner back at this site
+                state.drilled.add(tuple(after.pos))
 
         blocks = [SimEvent(type="GUARDRAIL_BLOCK", severity="minor", sol=result.sol, pos=obs.pos,
                            details={"guardrail_id": b.guardrail_id, "action": b.action, "reason": b.reason,
