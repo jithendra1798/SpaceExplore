@@ -6,6 +6,8 @@ whole mission. Everything that changes per sol goes in the user message.
 
 from __future__ import annotations
 
+from collections import defaultdict
+
 from contracts.constitution import BATTERY_FLOOR
 from contracts.models import HarnessConfig, Observation
 
@@ -31,7 +33,8 @@ GUARDRAIL_DOCS = {
 
 def build_system_prompt(h: HarnessConfig) -> str:
     rules = "\n".join(f"{i}. {r.text}" for i, r in enumerate(h.rules, 1)) or "(none)"
-    rails = "\n".join(f"- [{g.id}] " + GUARDRAIL_DOCS[g.type].format(**g.params) for g in h.guardrails) or "(none)"
+    rails = "\n".join(f"- [{g.id}] " + GUARDRAIL_DOCS.get(g.type, f"{g.type} {g.params}").format_map(defaultdict(lambda: "?", g.params))
+                      for g in h.guardrails) or "(none)"
     tools = "\n".join(f"- {TOOL_DOCS[t]}" for t in h.enabled_tools())
     return f"""{h.system_prompt}
 
@@ -69,6 +72,7 @@ def build_sol_message(
     memories: list[dict],
     hazards: list[dict],
     last_signals: tuple[int, list[str]] | None,
+    drilled: set[tuple[int, int]] = frozenset(),
 ) -> str:
     parts = [
         f"SOL {obs.sol}",
@@ -77,10 +81,13 @@ def build_sol_message(
         f"Weather: tau {obs.tau:.1f} (change since yesterday {obs.tau_trend:+.1f}).",
         "Local terrain:\n" + render_local_map(obs, known_terrain),
     ]
-    if obs.signals:
-        parts.append("Anomaly signals now: " + "; ".join(obs.signals))
-    elif last_signals:
-        parts.append(f"Anomaly signals from scan on sol {last_signals[0]}: " + "; ".join(last_signals[1]))
+    fresh = lambda sigs: [s for s in sigs if not any(f"({x},{y})" in s.replace(" ", "") for x, y in drilled)]
+    if last_signals and fresh(last_signals[1]):
+        parts.append(f"Anomaly signals from scan on sol {last_signals[0]}: " + "; ".join(fresh(last_signals[1])))
+    elif fresh(obs.signals):
+        parts.append("Anomaly signals: " + "; ".join(fresh(obs.signals)))
+    if drilled:
+        parts.append("Already drilled (nothing left there): " + ", ".join(f"({x},{y})" for x, y in sorted(drilled)))
     if recent:
         parts.append("Recent sols:\n" + "\n".join(f"- {r}" for r in recent))
     if hazards:

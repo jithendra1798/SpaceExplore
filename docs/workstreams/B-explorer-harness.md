@@ -61,11 +61,11 @@ You build the rover's brain and the runtime that turns a harness config into beh
 
 ## Done when
 
-- [ ] `python -m explorer.run --version 1 --seed 42 --sols 30` runs against the real sim and Atlas
-- [ ] Disabling a tool in the config removes it from the model's options
-- [ ] A guardrail block shows up as an event
-- [ ] 3 parallel `run_mission(mode="eval")` calls finish without errors
-- [ ] With `memory_k > 0`, retrieved memories appear in the prompt, and you can show one in the demo
+- [ ] `python -m explorer.run --version 1 --seed 42 --sols 30` runs against the real sim and Atlas. This is blocked on A's `sim/world.py` and the sandbox URI; it already runs on the fake world against a local Mongo
+- [x] Disabling a tool in the config removes it from the model's options
+- [x] A guardrail block shows up as an event
+- [x] 3 parallel `run_mission(mode="eval")` calls finish without errors (`tests/test_explorer.py`)
+- [x] With `memory_k > 0`, retrieved memories appear in the prompt. This uses recency until D's `$vectorSearch` helper lands
 
 ## Stretch
 

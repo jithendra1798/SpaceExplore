@@ -6,6 +6,22 @@ Built at the MongoDB Harness Engineering & Model Wrangling Hackathon (NYC, Septe
 
 An **Explorer** agent drives a rover across a simulated planet with sand traps, dust storms and wheel wear. When the rover gets into trouble, an **Engineer** agent rewrites the Explorer's harness: its rules, guardrails, tool access and memory policy. A patch is kept only if it scores better on held-out planets. It must also pass an immutable constitution. MongoDB Atlas holds the harness lineage, telemetry, incidents and vector memory, and its change streams trigger each repair.
 
+Everything in this repo was built today at the hackathon; the commit history starts at 1:29 PM on September 26, 2026.
+
+## How MongoDB Atlas is used
+
+Atlas is the rover's memory and the harness's version control. Every arrow in the self-repair loop goes through it:
+
+| Atlas feature | Collection | Role in the loop | Code |
+| --- | --- | --- | --- |
+| Change streams | `events` | A live major or critical incident wakes the Engineer the moment it is written, with no polling | [db/watch.py](db/watch.py) |
+| Atlas Vector Search (`$vectorSearch`), Voyage AI embeddings | `memories` | Each sol the Explorer recalls the lessons and past incidents most relevant to its situation, filtered by kind and planet | [db/memory.py](db/memory.py) |
+| Geospatial `$geoNear` on a `2d` index | `map_knowledge` | The Explorer is told about known hazards near the rover | [db/memory.py](db/memory.py) |
+| Documents with a unique `version` index | `harness_versions`, `patches` | Every harness version with its parent, the patch ops, the incident that caused it and its held-out scores, including rejected patches | [db/harness.py](db/harness.py) |
+| Time-series collection | `telemetry` | Per-sol rover state and the Explorer's reasoning, which the Engineer reads to diagnose incidents and the UI replays | [explorer/mission.py](explorer/mission.py) |
+
+[scripts/setup_db.py](scripts/setup_db.py) creates all of it, and [scripts/check_db.py](scripts/check_db.py) tests it on the live cluster.
+
 ## Docs
 
 | Doc | What's in it |
@@ -27,9 +43,17 @@ An **Explorer** agent drives a rover across a simulated planet with sand traps, 
 ## Setup
 
 ```bash
-uv sync                      # installs deps into .venv
-cp .env.example .env         # fill in MONGODB_URI (hackathon sandbox), ANTHROPIC_API_KEY, VOYAGE_API_KEY
-uv run python -c "from contracts import load_harness_v1; print(load_harness_v1().enabled_tools())"
+uv sync                                    # installs deps into .venv
+cp .env.example .env                       # fill in MONGODB_URI (hackathon sandbox), ANTHROPIC_API_KEY, VOYAGE_API_KEY
+uv run python -m scripts.setup_db          # collections, indexes, vector index, harness v1; safe to re-run
+uv run python -m scripts.setup_db --check  # connection test: reports what exists, changes nothing
+uv run python -m scripts.check_db          # tests embeddings, $vectorSearch, $geoNear and the change stream
 ```
 
 Run modules from the repo root with `uv run python -m <package>.<module>`. Shared types live in `contracts/`.
+
+```bash
+uv run python -m explorer.run --version active --seed 42 --sols 30 --sol-delay 1   # one live mission
+```
+
+**Fake data for UI work:** `uv run python -m scripts.seed_fake` fills a separate database, `rover_fake`, with two missions and a v1 to v4 lineage (every doc has `fake: true`). Run the UI with `MONGODB_DB=rover_fake` to use it. `--clean` drops it. The real `rover` database never holds fake data.
