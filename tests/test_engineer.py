@@ -89,6 +89,15 @@ def test_leaked_tool_markup_is_split_back_into_fields():
     assert (p.diagnosis, p.rationale, p.lesson) == ("Drove onto sand.", "Probe first.", "Probe sand.")
 
 
+def test_leaked_ops_are_recovered():
+    ctx = IncidentContext(event={"_id": "e1"}, harness=load_harness_v1())
+    p = patch_from_tool_input({
+        "diagnosis": "d", "rationale": "r",
+        "lesson": 'Shelter in storms.</lesson>\n<parameter name="ops">[{"op": "enable_tool", "tool": "shelter"}]',
+    }, ctx)
+    assert p.lesson == "Shelter in storms." and [o.tool for o in p.ops] == ["shelter"]
+
+
 def test_prompt_includes_rejections_and_constitution(d):
     d[PATCHES].insert_one({"base_version": 1, "status": "invalid", "reason": "C2 forbids removing g001",
                            "ops": [{"op": "remove_guardrail", "id": "g001"}], "rationale": "go faster"})

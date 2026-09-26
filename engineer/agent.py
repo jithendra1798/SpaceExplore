@@ -201,7 +201,19 @@ class LLMEngineer:
     def __init__(self, model: str | None = None):
         self.model = model or os.environ.get("ENGINEER_MODEL", DEFAULT_MODEL)
 
-    def propose(self, ctx: IncidentContext) -> HarnessPatch:
+    def propose(self, ctx: IncidentContext, attempts: int = 2) -> HarnessPatch:
+        for attempt in range(1, attempts + 1):
+            try:
+                patch = self._propose_once(ctx)
+            except EngineerError:
+                if attempt == attempts:
+                    raise
+                continue
+            if patch.ops or attempt == attempts:
+                return patch  # an empty patch is left for the validator to reject visibly
+        raise AssertionError("unreachable")
+
+    def _propose_once(self, ctx: IncidentContext) -> HarnessPatch:
         # tool_choice "auto" plus the system instruction: newer models reject forced tool use,
         # and Sonnet 5 rejects temperature, so neither is sent.
         resp = _client().messages.create(
@@ -239,6 +251,16 @@ def _repair_leaked_fields(data: dict) -> dict:
             nxt, value = parts[i], re.sub(r"</\w+>\s*$", "", parts[i + 1]).strip()
             if nxt in ("diagnosis", "rationale", "lesson") and not str(data.get(nxt) or "").strip():
                 data[nxt] = value
+            elif nxt == "ops" and not data.get("ops"):
+                try:
+                    data["ops"] = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+    if isinstance(data.get("ops"), str):  # ops sent as a JSON string instead of an array
+        try:
+            data["ops"] = json.loads(data["ops"])
+        except json.JSONDecodeError:
+            pass
     return data
 
 
