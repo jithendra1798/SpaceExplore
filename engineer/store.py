@@ -27,6 +27,11 @@ def database():
     return _override if _override is not None else get_db()
 
 
+def is_overridden() -> bool:
+    """True for tests and --offline runs. D's db.memory always writes to Atlas, so skip it then."""
+    return _override is not None
+
+
 # --- Harness versions --------------------------------------------------------
 
 

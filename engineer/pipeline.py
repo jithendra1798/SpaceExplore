@@ -10,7 +10,8 @@ import traceback
 from dataclasses import dataclass
 
 from contracts.constitution import HELD_OUT_SEEDS
-from contracts.models import HarnessPatch
+from contracts.models import HarnessPatch, utcnow
+from db.client import MEMORIES
 from engineer import store
 from engineer.agent import EngineerError, build_context
 from engineer.evaluate import evaluate
@@ -104,8 +105,14 @@ def _raw_eval_key(d, base_version: int) -> str | None:
 
 
 def _write_lesson(d, patch: HarnessPatch, version: int, planet: str) -> None:
-    from explorer import memory  # B's helper: uses D's embeddings when present, plain insert otherwise
     text = patch.lesson or patch.rationale
-    if text:
-        memory.remember(d, "lesson", text, harness_version=version, planet=planet, source="engineer",
-                        source_incidents=patch.source_incidents)
+    if not text:
+        return
+    # No planet: db.memory stores it as "any", so the lesson applies on every planet.
+    fields = {"harness_version": version, "source": "engineer", "learned_on": planet,
+              "source_incidents": patch.source_incidents}
+    if store.is_overridden():
+        d[MEMORIES].insert_one({"kind": "lesson", "text": text, "planet": "any", "created_at": utcnow(), **fields})
+        return
+    from explorer import memory  # embeds via D's db.memory.add_memory, falls back to a plain insert
+    memory.remember(d, "lesson", text, **fields)
