@@ -23,7 +23,7 @@ Workstreams: **A** Planet Sim + UI · **B** Explorer + Harness Runtime · **C** 
 | D10 | C | `run_mission()` in both eval and live modes | B | §4 | 3:30 | `engineer/fake_runner.py`: heuristic score from config (see C's workstream doc) | Delivered | 2:55 PM in `explorer/mission.py`, tested with 3 parallel eval runs on the fake world. Extra kwargs: `log_to_db`, `planner`, `fake_world`, `verbose` |
 | D11 | C | Real incident events in Atlas | B | §5, §5.2 | 3:30 | Insert the example event from CONTRACTS §5.2 by hand | Delivered | 3:13 PM: `run_mission` writes `events` (sim events plus `GUARDRAIL_BLOCK`); verified on a local Mongo. Appears in Atlas once `.env` has the sandbox URI |
 | D12 | A | Real `missions`, `telemetry`, `events`, `map_knowledge` data | B | §5 | 3:30 | D's `scripts/seed_fake.py` | Delivered | 3:13 PM: code writes all four; verified on a local Mongo. Filter `world_source: "sim"` for the demo |
-| D13 | B | Active harness written by the Engineer | C | §3.2 | 3:45 | `db.harness.get_active_harness()` returns v1 | Open | B always reads the active version at mission start |
+| D13 | B | Active harness written by the Engineer | C | §3.2 | 3:45 | `db.harness.get_active_harness()` returns v1 | Open | B always reads the active version at mission start. 3:20 PM: engineer loop ready on branch `c-engineer-eval`, tested on the fake runner; needs Atlas + keys for real versions |
 | D14 | A | Real `harness_versions` and `patches` lineage | C | §3.2, §3.4 | 3:45 | Fake lineage v1 to v4 in D's `scripts/seed_fake.py` | Open | |
 | D15 | — | Planet renderer `web/static/map.js` | A | §6 | — | — | n/a | UI moved to A at 2:55 PM, so this is no longer a cross-team dependency |
 | D16 | C | Tuned seeds: v1 fails on at least 2 of the 3 eval seeds; demo seed 42 has a sand trap and a storm | A | §2.5 | 3:45 | Any seeds | Open | |
@@ -64,3 +64,9 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | 3:25 PM | D | Fake UI data lives in its own database, `rover_fake` (docs still carry `fake: true`), so it cannot collide with real harness versions, wake the Engineer or leak into memory. A: run the UI with `MONGODB_DB=rover_fake` until real data lands | A |
 | 3:25 PM | D | `watch_incidents(callback, db=None)` gains an optional `db` | C |
 | 3:40 PM | B | `missions.status` can now be `"failed"`, with an `error` string, when a run crashes. Missions stuck at `running` from before 3:40 were crashes; ignore them | A, C |
+| 3:20 PM | C | `HarnessPatch` gains optional `lesson` (one sentence, written as a `lesson` memory on accept) | B, D |
+| 3:20 PM | C | `patches` docs also carry `candidate_version`, `engineer`, `runner`, `incident_type`, `mission_id`. Rejected patches keep their candidate in `harness_versions` with status `rejected`, so version numbers can skip in the active lineage; follow `parent_version` | A, D |
+| 3:20 PM | C | `harness_versions` docs gain `eval_key` (runner, planet, sols, seeds), plus `promoted_at` / `retired_at` | A, D |
+| 3:20 PM | C | Validator rejects a second guardrail of an existing type: the runtime keys rails by type, so a new `min_battery_for_move` would silently shadow `g001` | B |
+| 3:20 PM | C | `engineer.store.ensure_v1()` inserts `contracts/harness_v1.json` if `harness_versions` is empty (fallback for D04) | D |
+| 3:20 PM | C | `mongomock` added to the dev dependency group for offline tests; `uv.lock` needs a `uv lock` | D |

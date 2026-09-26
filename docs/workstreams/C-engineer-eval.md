@@ -73,9 +73,31 @@ You build the part the judges care about most: the agent that rewrites the Explo
 - **Budget.** One patch costs 3 candidate missions × 30 sols = 90 Explorer calls, plus 1 Engineer call. Six generations take about 15 minutes if the runs are parallel. Start the pre-run on time.
 - **Stable scoring.** Set temperature 0 for both agents. If the scores are still noisy, use 5 eval seeds.
 
+## How to run
+
+| Command | What it does |
+| --- | --- |
+| `uv run pytest tests` | Validator, C2/C3, baseline caching and the full loop, offline (mongomock) |
+| `uv run python -m engineer.evolve --runner fake --engineer scripted --offline` | Whole loop with no Atlas, sim or key: v1 to v4 |
+| `uv run python -m engineer.propose --incident fixtures/incident.json` | One real Engineer call on the fixture; prints the patch and validation, writes nothing |
+| `uv run python -m engineer.propose --event-id <id> --show-prompt` | Same, on a real incident with its telemetry from Atlas |
+| `uv run python -m engineer.watch` | Live loop: change stream (or 5 s polling) on live incidents |
+| `uv run python -m engineer.evolve --generations 6` | Pre-run for the demo lineage (D17): real Explorer, Claude Engineer, Atlas |
+
+`--runner` is `real` (B's `run_mission` + Claude), `scripted` (B's runtime, scripted planner, no key) or `fake`. `--engineer scripted` is an offline stand-in only; never demo it.
+
+| File | Role |
+| --- | --- |
+| `engineer/agent.py` | Builds the incident context and calls Claude with `propose_patch` |
+| `engineer/patch.py` | `apply_patch()`, `validate_patch()` |
+| `engineer/evaluate.py` | Held-out runs, baseline cache, rule C3 |
+| `engineer/pipeline.py` | One step: propose, validate, evaluate, promote or reject, write the lesson |
+| `engineer/watch.py`, `engineer/evolve.py` | Live and offline loops |
+| `engineer/store.py` | Atlas reads and writes for the above |
+
 ## Done when
 
-- [ ] On the fake runner, the loop takes v1 to v4 with accepted patches that match the fake scoring
+- [x] On the fake runner, the loop takes v1 to v4 with accepted patches that match the fake scoring
 - [ ] On the real runner, a live incident on seed 42 produces a patch, an evaluation and a new active version within about 3 minutes
 - [ ] At least one patch is visibly rejected, by the validator or by the evaluation
 - [ ] The pre-run lineage has 5+ versions with rising held-out scores

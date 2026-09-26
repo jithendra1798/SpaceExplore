@@ -221,6 +221,7 @@ class HarnessPatch(BaseModel):
     base_version: int
     diagnosis: str = ""
     rationale: str
+    lesson: str = ""  # one sentence written to `memories` (kind "lesson") if the patch is accepted
     source_incidents: list[str] = []
     ops: list[PatchOp]
     status: PatchStatus = "proposed"
