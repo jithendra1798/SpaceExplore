@@ -361,7 +361,7 @@ Use the **hackathon Atlas sandbox cluster**; finalists are only eligible if they
 | `telemetry` | B | D | Time-series collection: `ts`, `meta: {mission_id}`, `sol`, `pos`, `battery`, `wheel_health`, `tau`, `actions`, `blocked` | Time-series (timeField `ts`, metaField `meta`) |
 | `events` | B | C, D | `mission_id`, `mode`, `harness_version`, `sol`, `type`, `severity`, `pos`, `details`, `ts` | `{mission_id: 1, sol: 1}` |
 | `memories` | B (incident, discovery, summary), C (lesson) | B | `kind`, `text`, `embedding`, `mission_id`, `sol`, `loc`, `harness_version`, `planet` | Atlas Vector Search index `memories_vec` on `embedding`, filter fields `kind`, `planet` |
-| `map_knowledge` | B | B, D | `mission_id`, `loc: [x, y]`, `terrain`, `slip_probed`, `hazard`, `science_hint`, `first_seen_sol` | `{loc: "2d"}`, unique `{mission_id: 1, loc: 1}` |
+| `map_knowledge` | B | B, D | `mission_id`, `loc: [x, y]`, `terrain`, `slip_probed`, `hazard`, `science_hint`, `first_seen_sol` | `{loc: "2d"}`, `{mission_id: 1, loc: 1}` (not unique: `loc` is an array) |
 
 `mission_id` format: `m_<unixtime>_<seed>_<mode>`.
 
@@ -372,10 +372,10 @@ Use the **hackathon Atlas sandbox cluster**; finalists are only eligible if they
 def get_db() -> Database: ...                    # reads MONGODB_URI / MONGODB_DB
 HARNESS, PATCHES, MISSIONS, TELEMETRY, EVENTS, MEMORIES, MAP = (...)  # collection names
 
-# db/memory.py
-def embed(text: str) -> list[float]: ...
-def add_memory(kind: str, text: str, **fields) -> str: ...   # embeds and inserts
-def search_memories(query: str, kinds: list[str], k: int, planet: str | None = None) -> list[dict]: ...
+# db/memory.py  (Voyage voyage-3.5-lite, 1024 dims)
+def embed(text: str, input_type: str = "document") -> list[float]: ...   # "query" for searches
+def add_memory(kind: str, text: str, **fields) -> str: ...   # embeds and inserts; no planet -> "any"
+def search_memories(query: str, kinds: list[str], k: int, planet: str | None = None) -> list[dict]: ...  # planet or "any"
 def hazards_near(mission_id: str, pos: tuple[int, int], radius: int) -> list[dict]: ...  # $geoNear
 
 # db/harness.py
@@ -383,7 +383,7 @@ def get_active_harness() -> dict: ...
 def get_harness(version: int) -> dict: ...
 
 # db/watch.py
-def watch_incidents(callback) -> None: ...
+def watch_incidents(callback, db=None) -> None: ...
     # change stream on `events`: inserts where mode == "live" and severity in [major, critical]
 ```
 

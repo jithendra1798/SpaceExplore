@@ -58,4 +58,9 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | 3:13 PM | B | `missions` docs gain `world_source`: `"sim"` or `"fake"`. Use it to filter out runs on B's fake world | A, C |
 | 3:13 PM | B | B creates `telemetry` as a time-series collection if it is missing, so `scripts/setup_db.py` must skip it when it already exists | D |
 | 3:13 PM | B | `pyproject.toml`: pytest config added; run `uv run pytest` | All |
+| 3:25 PM | D | `map_knowledge` index `{mission_id: 1, loc: 1}` is **not unique**: `loc` is an array, so a unique index compares x and y separately and rejects distinct tiles that share a coordinate, e.g. (3,5) and (5,7). Verified on the cluster by `scripts/check_db.py` | B |
+| 3:25 PM | D | Embeddings: Voyage `voyage-3.5-lite`, 1024 dims, cosine. `memories_vec` filter fields `kind` and `planet` | B, C |
+| 3:25 PM | D | `add_memory` stores a missing `planet` as `"any"`; `search_memories(planet=p)` matches `p` or `"any"`. C: write lessons with `db.memory.add_memory("lesson", text, harness_version=...)` so they are embedded and apply on every planet | B, C |
+| 3:25 PM | D | Fake UI data lives in its own database, `rover_fake` (docs still carry `fake: true`), so it cannot collide with real harness versions, wake the Engineer or leak into memory. A: run the UI with `MONGODB_DB=rover_fake` until real data lands | A |
+| 3:25 PM | D | `watch_incidents(callback, db=None)` gains an optional `db` | C |
 | 3:40 PM | B | `missions.status` can now be `"failed"`, with an `error` string, when a run crashes. Missions stuck at `running` from before 3:40 were crashes; ignore them | A, C |
