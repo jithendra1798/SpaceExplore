@@ -253,3 +253,11 @@ footer { display: flex; justify-content: space-between; gap: 15px; border-top: 1
   .patch-copy, .version-sections { grid-template-columns: 1fr; }
   footer { flex-direction: column; padding: 12px; font-size: .56rem; }
 }
+
+/* simple action-line layout for Engineer and Harness tabs */
+.patch-card.simple { display: grid; gap: 10px; }
+.action-line { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.action-line .al-icon { flex: 0 0 1.6em; font-size: 1.1em; }
+.al-list { margin: 6px 0 0; padding-left: 18px; }
+.al-list li { margin: 3px 0; }
+.version-sections.simple { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }

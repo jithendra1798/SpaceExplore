@@ -99,19 +99,26 @@ function setLoading(message) {
   byId('map-caption').textContent = message;
 }
 
+// Missions shown in the picker for the demo: Earth-dependent baseline, then the self-improved harness.
+const DEMO_MISSIONS = ['m_1790454106_42_live_v1_f4d1', 'm_1790460855_42_live_v6_a31a'];
+
 async function loadMissionList() {
   try {
     const response = await getJson('/api/missions');
-    const missions = response.items || [];
+    const all = response.items || [];
+    const pinned = all.filter((m) => DEMO_MISSIONS.includes(missionKey(m)));
+    const live = pinned.length ? pinned : all.filter((m) => m.mode !== 'eval' && m.world_source !== 'fake' && m.status === 'done');
+    const missions = (live.length ? live : all).sort((x, y) => Number(x.harness_version) - Number(y.harness_version) || String(y.started_at).localeCompare(String(x.started_at)));
     const picker = byId('mission-select');
     picker.replaceChildren();
-    missions.forEach((mission, index) => {
+    missions.forEach((mission) => {
       const option = document.createElement('option');
       option.value = missionKey(mission);
-      const planet = mission.planet || 'planet';
-      const seed = mission.seed == null ? '' : ` · seed ${mission.seed}`;
-      const status = mission.status ? ` · ${mission.status}` : '';
-      option.textContent = `${planet}${seed}${status}${missions.length > 1 ? ` · mission ${index + 1}` : ''}`;
+      const v = Number(mission.harness_version);
+      const who = v === 1 ? 'Human-written harness (waits for Earth)' : `Self-improved harness v${v}`;
+      const m = mission.metrics || {};
+      const fate = m.alive === false ? `lost on sol ${m.sols_survived}` : m.sols_survived ? `survived ${m.sols_survived} sols` : mission.status;
+      option.textContent = `v${v} · ${who} · ${fate} · seed ${mission.seed}`;
       picker.append(option);
     });
     if (!missions.length) throw new Error('No missions are available yet.');
@@ -440,146 +447,128 @@ function startPlayback() {
   }, 800);
 }
 
-function actionLabel(op) {
-  const params = op.params ? ` ${JSON.stringify(op.params)}` : '';
-  return `${op.op || 'change'}${op.tool ? ` · ${op.tool}` : ''}${op.type ? ` · ${op.type}` : ''}${op.id ? ` · ${op.id}` : ''}${params}`;
+const TOOL_NAMES = { move: 'Drive', scan: 'Scan', drill: 'Drill', wait: 'Wait', probe_terrain: 'Test the ground', shelter: 'Shelter from storms' };
+
+function plainOp(op) {
+  const p = op.params || {};
+  switch (op.op) {
+    case 'enable_tool': return `Learned a new skill: ${TOOL_NAMES[op.tool] || op.tool}`;
+    case 'disable_tool': return `Stopped using: ${TOOL_NAMES[op.tool] || op.tool}`;
+    case 'add_rule': return `New rule: ${op.text}`;
+    case 'remove_rule': return `Dropped a rule (${op.id})`;
+    case 'add_guardrail':
+    case 'update_guardrail': return guardText({ type: op.type, params: p, id: op.id }, op.op === 'add_guardrail' ? 'New safety check: ' : 'Tightened safety check: ');
+    case 'remove_guardrail': return `Removed safety check ${op.id}`;
+    case 'set_context': return `Memory: ${String(op.field).replaceAll('_', ' ')} → ${op.value}`;
+    case 'set_param': return `Setting: ${String(op.field).replaceAll('_', ' ')} → ${op.value}`;
+    case 'edit_prompt': return 'Rewrote part of its mission briefing';
+    default: return op.op || 'Change';
+  }
 }
 
-function evalTable(evaluation, fallback) {
-  const evalData = evaluation || fallback;
-  if (!evalData) return '<p class="muted">No held-out evaluation has been recorded.</p>';
-  const seeds = evalData.per_seed || evalData.perSeed || [];
-  if (!seeds.length) return `<p>Overall score: <strong>${safe(fmt(evalData.score ?? evalData.candidate_score, 1))}</strong></p>`;
-  const rows = seeds.map((seed) => {
-    const before = seed.baseline_score;
-    const after = seed.candidate_score ?? seed.score;
-    const verdict = Number.isFinite(Number(before)) ? Number(after) - Number(before) : 0;
-    return `<tr><td>${safe(seed.seed ?? '—')}</td>${before != null ? `<td>${safe(fmt(before))}</td>` : ''}<td>${safe(fmt(after))}</td>${before != null ? `<td class="${verdict >= 0 ? 'score-up' : 'score-down'}">${verdict >= 0 ? '+' : ''}${safe(fmt(verdict))}</td>` : ''}</tr>`;
-  }).join('');
-  const beforeHead = seeds[0].baseline_score != null ? '<th>Before</th>' : '';
-  const deltaHead = seeds[0].baseline_score != null ? '<th>Change</th>' : '';
-  return `<table class="seed-eval"><caption>Held-out scores · each row is one seed</caption><thead><tr><th>Seed</th>${beforeHead}<th>After</th>${deltaHead}</tr></thead><tbody>${rows}</tbody></table>`;
+function guardText(g, prefix = '') {
+  const p = g.params || {};
+  const text = {
+    min_battery_for_move: `no driving below ${p.threshold}% battery`,
+    avoid_terrain: `never drive onto ${String(p.terrain || 'hazard').replaceAll('_', ' ')} without testing it first`,
+    max_steps_per_move: `drive at most ${p.n} steps at a time`,
+    shelter_when_tau_above: `shelter automatically when dust is above ${p.tau}`,
+    no_drill_below_battery: `no drilling below ${p.threshold}% battery`,
+  }[g.type] || `${g.type}`;
+  return prefix + text;
+}
+
+function plainReason(reason) {
+  if (!reason) return '';
+  if (/died/i.test(reason)) return 'Not adopted: in a test run the rover died where the old version survived. Safety comes first.';
+  return reason.replace(/^C\d:\s*/, '');
+}
+
+function firstSentence(text) {
+  const t = String(text || '').trim();
+  const m = t.match(/^(.{20,220}?[.!?])(\s|$)/);
+  return m ? m[1] : t.slice(0, 220);
 }
 
 async function loadEngineer() {
   const timeline = byId('patch-timeline');
-  timeline.innerHTML = '<div class="loading-card">Loading patch history…</div>';
+  timeline.innerHTML = '<div class="loading-card">Loading…</div>';
   try {
     state.harness = await getJson('/api/harness');
     updateSource(state.harness.source || state.source, state.harness.note || state.missionNote);
     renderEngineer();
     renderHarness();
   } catch (error) {
-    timeline.innerHTML = `<div class="error-card">Patch history could not be loaded: ${safe(error.message)}</div>`;
+    timeline.innerHTML = `<div class="error-card">Could not load: ${safe(error.message)}</div>`;
   }
 }
 
 function renderEngineer() {
-  const versions = state.harness?.versions || [];
   const patches = state.harness?.patches || [];
-  const latestVersion = versions.at(-1);
-  const accepted = patches.filter((patch) => patch.status === 'accepted').length;
-  const invalid = patches.filter((patch) => ['invalid', 'rejected'].includes(patch.status)).length;
-  const scores = versions.map((item) => Number(item.eval?.score)).filter(Number.isFinite);
-  byId('engineer-overview').innerHTML = [
-    ['Harness versions', versions.length || '—'],
-    ['Patch proposals', patches.length || '—'],
-    ['Promoted changes', accepted || '—'],
-    ['Latest held-out score', Number.isFinite(Number(latestVersion?.eval?.score)) ? fmt(latestVersion.eval.score) : scores.length ? fmt(scores.at(-1)) : '—'],
-  ].map(([label, value]) => `<div class="overview-card"><span>${safe(label)}</span><strong>${safe(value)}</strong></div>`).join('');
+  byId('engineer-overview').innerHTML = '';
   const timeline = byId('patch-timeline');
   if (!patches.length) {
-    timeline.innerHTML = '<div class="loading-card">No patches have been recorded. When an incident triggers an Engineer proposal, its diagnosis and evaluation will appear here.</div>';
+    timeline.innerHTML = '<div class="loading-card">No repairs yet. When the rover gets into trouble, the Engineer\'s fix appears here.</div>';
     return;
   }
   timeline.innerHTML = [...patches].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).map((patch) => {
-    const base = patch.base_version ?? '—';
-    const result = patch.result_version == null ? 'not promoted' : `v${patch.result_version}`;
-    const ops = (patch.ops || []).map((op) => `<span class="op-chip">${safe(actionLabel(op))}</span>`).join('') || '<span class="muted">No operations recorded</span>';
-    const incidents = (patch.source_incidents || []).map((incident) => `Incident ${String(incident).slice(-8)}`).join(', ') || 'No incident linked';
-    return `<article class="patch-card">
-      <div class="patch-top"><h2>Harness v${safe(base)} → ${safe(result)}</h2><span class="patch-status ${safe(patch.status || 'proposed')}">${safe(patch.status || 'proposed')}</span></div>
-      <div class="patch-copy"><div><strong>INCIDENT / DIAGNOSIS</strong><p>${safe(patch.diagnosis || incidents)}</p></div><div><strong>WHY THIS CHANGE</strong><p>${safe(patch.rationale || 'No rationale was recorded.')}</p></div></div>
-      <div class="ops-list">${ops}</div>
-      ${evalTable(patch.eval, null)}
-      ${patch.reason ? `<div class="rejection-reason">Decision: ${safe(patch.reason)}</div>` : ''}
-      <span class="incident-ref">${safe(incidents)}</span>
-      ${state.harness.preview ? '<span class="fake-label"> · illustrative preview record</span>' : ''}
+    const ok = patch.status === 'accepted';
+    const to = patch.result_version ?? patch.candidate_version;
+    const ops = (patch.ops || []).map((op) => `<li>${safe(plainOp(op))}</li>`).join('');
+    const ev = patch.eval || {};
+    const score = ev.baseline_score != null && ev.candidate_score != null
+      ? `<div class="action-line"><span class="al-icon">📈</span><span>Mission score <strong>${safe(fmt(ev.baseline_score))}</strong> → <strong class="${Number(ev.candidate_score) >= Number(ev.baseline_score) ? 'score-up' : 'score-down'}">${safe(fmt(ev.candidate_score))}</strong></span></div>` : '';
+    return `<article class="patch-card simple">
+      <div class="patch-top"><h2>v${safe(patch.base_version)} → v${safe(to ?? '?')}</h2><span class="patch-status ${ok ? 'accepted' : 'rejected'}">${ok ? '✅ Adopted' : '❌ Not adopted'}</span></div>
+      <div class="action-line"><span class="al-icon">⚠️</span><span><strong>What went wrong:</strong> ${safe(firstSentence(patch.diagnosis || patch.rationale))}</span></div>
+      <div class="action-line"><span class="al-icon">🔧</span><span><strong>What the Engineer changed:</strong><ul class="al-list">${ops}</ul></span></div>
+      ${score}
+      ${ok ? `<div class="action-line"><span class="al-icon">🚀</span><span>Now running on the rover as <strong>v${safe(to)}</strong>, with no call to Earth.</span></div>`
+           : `<div class="action-line"><span class="al-icon">🛡️</span><span>${safe(plainReason(patch.reason))}</span></div>`}
     </article>`;
   }).join('');
-}
-
-function ruleSummary(version) {
-  return (version.rules || []).map((rule) => `<li>${safe(rule.text || rule.id)}</li>`).join('') || '<li>No rules recorded.</li>';
-}
-
-function guardSummary(version) {
-  return (version.guardrails || []).map((guard) => `<li><code>${safe(guard.type)}</code> · ${safe(JSON.stringify(guard.params || {}))}</li>`).join('') || '<li>No guardrails recorded.</li>';
 }
 
 async function selectVersion(version) {
   state.selectedVersion = Number(version);
   renderHarness();
   const versions = state.harness?.versions || [];
-  const selected = versions.find((item) => Number(item.version) === state.selectedVersion);
-  const parentVersion = selected?.parent_version;
-  if (parentVersion == null) {
-    renderVersionDetail(selected, null);
-    return;
-  }
-  try {
-    const diff = await getJson(`/api/harness/${parentVersion}/diff/${state.selectedVersion}`);
-    renderVersionDetail(selected, diff);
-  } catch (error) {
-    renderVersionDetail(selected, { changes: {}, note: error.message });
-  }
+  renderVersionDetail(versions.find((item) => Number(item.version) === state.selectedVersion));
 }
 
-function renderVersionDetail(version, diff) {
+function renderVersionDetail(version) {
   const detail = byId('version-detail');
-  if (!version) {
-    detail.innerHTML = '<div class="loading-card">Select a harness version to inspect its rules and changes.</div>';
-    return;
-  }
-  const tools = Object.entries(version.tools || {}).filter(([, enabled]) => enabled).map(([tool]) => tool.replaceAll('_', ' '));
-  const policy = version.context_policy || {};
-  const changes = diff?.changes || {};
-  const diffHtml = Object.keys(changes).length
-    ? Object.entries(changes).map(([key, value]) => `<div class="diff-row"><code>${safe(key)}</code><br><span>${safe(JSON.stringify(value.before))} → ${safe(JSON.stringify(value.after))}</span></div>`).join('')
-    : `<p>${safe(diff?.note || (version.parent_version == null ? 'This is the root harness version.' : 'No field changes were reported.'))}</p>`;
-  const incidents = (version.source_incidents || []).map((id) => `Incident ${String(id).slice(-8)}`).join(', ') || 'No linked incident';
-  detail.innerHTML = `<div class="version-detail-header"><div><div class="eyebrow">SELECTED HARNESS · ${version.parent_version == null ? 'BASELINE' : `CHANGE FROM V${safe(version.parent_version)}`}</div><h2>Version ${safe(version.version)} · ${safe(version.status || 'candidate')}</h2><p>${safe(version.rationale || 'No rationale recorded.')}<br>Changed by ${safe(version.author || 'unknown')} · ${safe(incidents)}</p></div><div class="version-score"><span>HELD-OUT SCORE</span><strong>${safe(fmt(version.eval?.score, 1))}</strong></div></div>
-    <div class="version-sections">
-      <section class="detail-section"><h3>What changed</h3><div class="diff-list">${diffHtml}</div></section>
-      <section class="detail-section"><h3>Rules</h3><ul>${ruleSummary(version)}</ul></section>
-      <section class="detail-section"><h3>Safety guardrails</h3><ul>${guardSummary(version)}</ul></section>
-      <section class="detail-section"><h3>Available rover tools</h3><p>${safe(tools.join(' · ') || 'No tools enabled')}</p></section>
-      <section class="detail-section"><h3>Memory and context</h3><p>Recent sols: ${safe(policy.recent_sols ?? '—')} · Retrieved memories: ${safe(policy.memory_k ?? 0)} · Summarize every: ${safe(policy.summarize_every ?? 0)} sols<br>Kinds: ${safe((policy.memory_kinds || []).join(', ') || 'none')}</p></section>
-      <section class="detail-section"><h3>Held-out seeds</h3>${evalTable(version.eval, null)}</section>
-    </div>${state.harness.preview ? '<p class="fake-label" style="margin:12px 0 0">Illustrative preview lineage and scores, not real Atlas evaluation results.</p>' : ''}`;
+  if (!version) { detail.innerHTML = '<div class="loading-card">Pick a version.</div>'; return; }
+  const skills = Object.entries(version.tools || {}).filter(([, on]) => on).map(([t]) => `<span class="op-chip">${safe(TOOL_NAMES[t] || t)}</span>`).join('');
+  const patch = (state.harness?.patches || []).find((pt) => Number(pt.result_version ?? pt.candidate_version) === Number(version.version));
+  const changed = patch ? (patch.ops || []).map((op) => `<li>${safe(plainOp(op))}</li>`).join('') : '';
+  const rules = (version.rules || []).map((r) => `<li>${safe(r.text)}</li>`).join('');
+  const guards = (version.guardrails || []).map((g) => `<li>${safe(guardText(g))}</li>`).join('');
+  const label = version.status === 'active' ? '🟢 Running on the rover' : version.status === 'rejected' ? '❌ Not adopted' : version.status === 'retired' ? '⏸ Replaced' : version.status;
+  detail.innerHTML = `<div class="version-detail-header"><div><h2>Version ${safe(version.version)} · ${safe(label)}</h2>
+      <p>${version.parent_version == null ? 'Written by humans: the starting point.' : `Written by the Engineer from v${safe(version.parent_version)}.`}</p></div></div>
+    <div class="version-sections simple">
+      ${changed ? `<section class="detail-section"><h3>What the Engineer changed</h3><ul class="al-list">${changed}</ul></section>` : ''}
+      <section class="detail-section"><h3>Skills</h3><p>${skills || '—'}</p></section>
+      <section class="detail-section"><h3>Safety checks</h3><ul class="al-list">${guards || '<li>None</li>'}</ul></section>
+      <section class="detail-section"><h3>Rules</h3><ul class="al-list">${rules || '<li>None</li>'}</ul></section>
+    </div>`;
 }
 
 function renderHarness() {
   const versions = [...(state.harness?.versions || [])].sort((a, b) => Number(a.version) - Number(b.version));
   const track = byId('lineage-track');
-  if (!versions.length) {
-    track.innerHTML = '<div class="loading-card">No harness lineage is available yet.</div>';
-    return;
-  }
+  if (!versions.length) { track.innerHTML = '<div class="loading-card">No versions yet.</div>'; return; }
   if (state.selectedVersion == null || !versions.some((item) => Number(item.version) === state.selectedVersion)) {
-    state.selectedVersion = Number(versions.at(-1).version);
+    state.selectedVersion = Number((versions.find((v) => v.status === 'active') || versions.at(-1)).version);
   }
+  const icon = { active: '🟢', rejected: '❌', retired: '⏸' };
   track.innerHTML = versions.map((version) => {
-    const score = version.eval?.score;
     const selected = Number(version.version) === state.selectedVersion;
-    return `<button class="version-node ${selected ? 'selected' : ''}" type="button" data-version="${safe(version.version)}" aria-pressed="${selected}"><span><span class="version-id">VERSION ${safe(version.version)}</span><strong>${safe(version.status || 'candidate')}</strong></span><small>${score == null ? 'No score recorded' : `Held-out score · ${safe(fmt(score, 1))}`}</small></button>`;
+    return `<button class="version-node ${selected ? 'selected' : ''}" type="button" data-version="${safe(version.version)}" aria-pressed="${selected}"><span><span class="version-id">v${safe(version.version)}</span><strong>${icon[version.status] || ''} ${safe(version.author === 'human' ? 'Human baseline' : 'Engineer')}</strong></span></button>`;
   }).join('');
   track.querySelectorAll('[data-version]').forEach((button) => button.addEventListener('click', () => selectVersion(button.dataset.version)));
-  if (!track.dataset.initialized) {
-    track.dataset.initialized = 'true';
-    const selected = versions.at(-1);
-    selectVersion(selected.version);
-  }
+  if (!track.dataset.initialized) { track.dataset.initialized = 'true'; selectVersion(state.selectedVersion); }
 }
 
 function connectLiveFeed() {

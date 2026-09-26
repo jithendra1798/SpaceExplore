@@ -30,6 +30,8 @@ def main() -> None:
     p.add_argument("--engineer", choices=["llm", "scripted"], default="llm")
     p.add_argument("--planet", default="mars")
     p.add_argument("--sols", type=int, default=30)
+    p.add_argument("--seeds", type=lambda v: [int(x) for x in v.split(",")], default=None,
+                   help="comma-separated evaluation seeds, e.g. 42 to judge a fix on the planet where it failed")
     args = p.parse_args()
 
     d = store.database()
@@ -40,7 +42,8 @@ def main() -> None:
         event = store.get_event(d, args.event_id)
     if event is None:
         raise SystemExit("incident not found")
-    out = improve(d, event, get_engineer(args.engineer), get_runner(args.runner), args.runner, args.planet, args.sols)
+    extra = {"seeds": args.seeds} if args.seeds else {}
+    out = improve(d, event, get_engineer(args.engineer), get_runner(args.runner), args.runner, args.planet, args.sols, **extra)
     print(out)
     print_lineage(d)
 
