@@ -38,6 +38,7 @@ GuardrailType = Literal[
 EVENT_TYPES: tuple[str, ...] = (
     "STUCK", "FREED", "FALL", "WHEEL_DAMAGE", "BATTERY_LOW", "BATTERY_CRITICAL",
     "STORM_ONSET", "STORM_END", "DISCOVERY", "DEATH", "GUARDRAIL_BLOCK",
+    "NAV_DRIFT", "GROUND_UPLINK",
 )
 INCIDENT_SEVERITIES: tuple[str, ...] = ("major", "critical")
 

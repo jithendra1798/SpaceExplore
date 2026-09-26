@@ -101,6 +101,10 @@ See section 3 for the pydantic models. Event types emitted by the sim:
 | `STORM_ONSET` / `STORM_END` | info | tau crosses 2.0 |
 | `DISCOVERY` | info | Drill collected science |
 | `DEATH` | critical | Battery hit 0, or wheels at 0 while stuck |
+| `NAV_DRIFT` | major | Drove while tau > 2: visual odometry lost lock and the rover ended off its planned stop. Details: `start`, `planned`, `actual`, `offset`, `uplink_sol`. Driving is refused until the uplink |
+| `GROUND_UPLINK` | info | End of the hold (2 sols after `NAV_DRIFT`): Earth fixes the position and sends a hazard-free route to the planned stop. Details: `fix`, `destination`, `route`, `directions` |
+
+While holding, `observe().signals` carries a `NAV HOLD: ...` line; the uplink sol carries `UPLINK from Earth: position fix (x,y). Safe route to (x,y): N,N,NW`. Move outcomes also include `data.trail`, the tiles driven through.
 
 B adds one more type: `GUARDRAIL_BLOCK` (minor), raised when a guardrail blocks or rewrites an action.
 

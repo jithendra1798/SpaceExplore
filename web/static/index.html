@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <title>SpaceExplore · Mission Control</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="SpaceExplore Mission Control home">
+      <span class="brand-mark">✦</span>
+      <span><strong>SPACE<span>EXPLORE</span></strong><small>MISSION CONTROL</small></span>
+    </a>
+    <nav class="tabs" aria-label="Mission Control views" role="tablist">
+      <button class="tab active" data-view="mission" role="tab" aria-selected="true">Mission</button>
+      <button class="tab" data-view="engineer" role="tab" aria-selected="false">Engineer</button>
+      <button class="tab" data-view="harness" role="tab" aria-selected="false">Harness Lab</button>
+    </nav>
+    <div id="source-badge" class="source-badge preview"><span class="status-dot"></span><span>Loading mission data</span></div>
+  </header>
+
+  <main>
+    <div id="source-note" class="source-note" hidden></div>
+
+    <section id="view-mission" class="view active" role="tabpanel">
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">PLANETARY EXPLORATION / LIVE REPLAY</div>
+          <h1>Mission <span class="heading-accent">in context.</span></h1>
+          <p>Watch the rover drive the real terrain, one sol at a time, and see why it made each move.</p>
+        </div>
+        <label class="mission-picker">Mission
+          <select id="mission-select" aria-label="Choose mission"></select>
+        </label>
+      </div>
+
+      <div id="sol-toolbar" class="sol-toolbar">
+        <div class="sol-definition"><span class="sol-kicker">SOL</span><strong id="sol-number">—</strong><span class="sol-explainer">one simulated mission day</span></div>
+        <button id="restart" class="icon-button" type="button" aria-label="Restart replay" title="Restart">↺</button>
+        <button id="play" class="play-button" type="button">▶ <span>Play replay</span></button>
+        <div class="timeline-wrap">
+          <div class="timeline-labels"><span>Mission start</span><span id="storm-tick">Storm forecast</span><span id="timeline-end">Mission end</span></div>
+          <div class="timeline-track"><div id="timeline-marks" class="timeline-marks" aria-hidden="true"></div><input id="sol-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Replay sol"></div>
+        </div>
+        <output id="sol-output" for="sol-slider">—</output>
+      </div>
+
+      <section class="map-card card">
+        <div class="card-heading map-heading">
+          <div><div class="eyebrow">SURFACE · ORBITAL VIEW</div><h2 id="map-title">Planet view</h2></div>
+          <label class="truth-toggle"><input id="show-truth" type="checkbox"> Reveal hidden slip and deposits</label>
+        </div>
+        <div class="map-stage">
+          <canvas id="planet" aria-label="Orbital view of the planet surface with the rover and its tracks"></canvas>
+          <div class="hud hud-sky" aria-live="polite">
+            <div class="hud-sun" id="hud-sun" aria-hidden="true"></div>
+            <div>
+              <strong id="weather-badge">Clear sky</strong>
+              <small id="weather-line">—</small>
+            </div>
+          </div>
+          <div class="hud hud-rover">
+            <div class="hud-rover-top"><span id="rover-state" class="state-pill">—</span><small id="position-value">—</small></div>
+            <div class="hud-gauge"><span>Power</span><div class="meter"><i id="battery-meter"></i></div><strong id="battery-value">—</strong></div>
+            <div class="hud-gauge"><span>Wheels</span><div class="meter wheel-meter"><i id="wheel-meter"></i></div><strong id="wheel-value">—</strong></div>
+            <div class="hud-gauge"><span>Ground</span><strong id="terrain-value" class="hud-terrain">—</strong></div>
+          </div>
+          <div class="hud hud-caption" id="map-caption" aria-live="polite">Loading mission…</div>
+          <canvas id="minimap" class="hud-minimap" aria-label="Whole-map overview"></canvas>
+          <div class="hud-hint">Scroll to zoom · drag to pan · double-click to follow the rover</div>
+        </div>
+        <div class="map-legend">
+          <span><i class="swatch" style="--swatch:#a2653f"></i>Dusty regolith</span>
+          <span><i class="swatch" style="--swatch:#c4a07c"></i>Fractured bedrock</span>
+          <span><i class="swatch swatch-dune"></i>Dark sand ripples: may hide soft traps</span>
+          <span><i class="swatch" style="--swatch:#4d3a31"></i>Boulder fields</span>
+          <span><i class="swatch swatch-rim"></i>Crater rim: fall risk</span>
+          <span><i class="swatch swatch-fog"></i>Dim ground: not yet seen by the rover</span>
+          <span><i class="swatch swatch-track"></i>Wheel tracks · end-of-sol stops</span>
+        </div>
+      </section>
+
+      <div id="mission-summary" class="mission-summary"></div>
+
+      <div class="mission-below">
+        <section class="card agent-card">
+          <div class="card-heading"><div><div class="eyebrow">EXPLORER AGENT</div><h2>What it did this sol, and why</h2></div></div>
+          <div id="action-list" class="action-list"><span class="muted">No action recorded for this sol.</span></div>
+          <div class="reasoning-block"><div class="reasoning-title"><span>WHY THIS PLAN</span><span id="reasoning-kind" class="reasoning-kind">—</span></div><p id="reasoning-text">—</p></div>
+          <div id="guardrail-note" class="guardrail-note" hidden></div>
+        </section>
+
+        <section class="card events-card">
+          <div class="card-heading"><div><div class="eyebrow">MISSION RECORD</div><h2>Events</h2></div><span id="event-count" class="count-pill">0</span></div>
+          <ol id="event-feed" class="event-feed"><li class="empty-state">No events yet.</li></ol>
+        </section>
+      </div>
+    </section>
+
+    <section id="view-engineer" class="view" role="tabpanel" hidden>
+      <div class="page-heading"><div><div class="eyebrow">AUTONOMOUS HARNESS REPAIR</div><h1>Engineer <span class="heading-accent">timeline.</span></h1><p>See the incident, diagnosis, proposed changes, held-out scores, and promotion decision.</p></div></div>
+      <div id="engineer-overview" class="engineer-overview"></div>
+      <div id="patch-timeline" class="patch-timeline"><div class="loading-card">Loading patch history…</div></div>
+    </section>
+
+    <section id="view-harness" class="view" role="tabpanel" hidden>
+      <div class="page-heading"><div><div class="eyebrow">VERSION LINEAGE / HELD-OUT EVALUATION</div><h1>Harness <span class="heading-accent">Lab.</span></h1><p>Compare the rules, safeguards, tool access, and memory policy behind each version.</p></div></div>
+      <div id="lineage-track" class="lineage-track"></div>
+      <div id="version-detail" class="version-detail card"><div class="loading-card">Loading harness history…</div></div>
+    </section>
+  </main>
+
+  <footer><span>SPACEEXPLORE · AUTONOMY WITHOUT EARTH IN THE LOOP</span><span id="connection-state">Connecting to mission data…</span></footer>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

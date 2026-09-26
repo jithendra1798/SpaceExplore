@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpaceExplore · Mission Replay</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      background: #101218;
+      color: #f4f3ed;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { max-width: 1320px; margin: 0 auto; padding: 28px 22px 42px; }
+    header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    h1 { margin: 0 0 7px; font-size: clamp(1.55rem, 3vw, 2.35rem); letter-spacing: -.045em; }
+    p { margin: 0; color: #aab1bc; line-height: 1.5; }
+    .eyebrow { margin-bottom: 8px; color: #73dec8; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+    button { border: 1px solid #404752; border-radius: 8px; padding: 9px 13px; background: #20242d; color: #f4f3ed; font: inherit; cursor: pointer; }
+    button:hover { border-color: #73dec8; }
+    button.primary { background: #1f6b64; border-color: #3ca699; }
+    label { color: #d9e0e8; font-size: .88rem; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; align-items: start; gap: 20px; }
+    .map-shell, .panel { border: 1px solid #2c323c; border-radius: 14px; background: #171a22; }
+    .map-shell { padding: 12px; }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 9px; image-rendering: pixelated; background: #111c28; }
+    .scrubber { position: sticky; z-index: 5; top: 0; display: grid; grid-template-columns: auto minmax(100px, 1fr) auto; align-items: center; gap: 12px; margin: -12px -12px 12px; border-bottom: 1px solid #38414a; border-radius: 14px 14px 0 0; padding: 11px 15px; background: rgba(23, 26, 34, .97); backdrop-filter: blur(14px); }
+    input[type="range"] { width: 100%; accent-color: #67d9c6; }
+    output { min-width: 82px; color: #f4f3ed; font-variant-numeric: tabular-nums; text-align: right; }
+    .side { display: grid; gap: 12px; }
+    .panel { padding: 15px; }
+    .panel h2 { margin: 0 0 12px; color: #aab1bc; font-size: .76rem; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat { border: 1px solid #2c323c; border-radius: 9px; padding: 10px; background: #12151b; }
+    .stat span { display: block; margin-bottom: 4px; color: #929ba8; font-size: .72rem; }
+    .stat strong { font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+    .weather { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .weather strong { font-size: 1.1rem; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #3e4751; border-radius: 999px; padding: 5px 8px; color: #b9c4ce; font-size: .72rem; }
+    .badge.storm { border-color: #9c6245; background: #472e24; color: #ffd2a1; }
+    .weather-copy { min-height: 40px; color: #9da6b1; font-size: .83rem; line-height: 1.45; }
+    .feed { display: grid; gap: 8px; max-height: 250px; overflow: auto; padding: 0; margin: 0; list-style: none; }
+    .feed li { display: grid; grid-template-columns: 44px 1fr; gap: 8px; border-left: 2px solid var(--event-color, #55d6be); padding: 4px 0 4px 8px; color: #d2d7df; font-size: .8rem; line-height: 1.4; }
+    .feed time { color: #9099a5; font-variant-numeric: tabular-nums; }
+    .empty { color: #7f8996; font-size: .84rem; }
+    .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; margin-top: 12px; color: #c1c8d1; font-size: .78rem; }
+    .key { display: flex; align-items: center; gap: 7px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; background: var(--color); }
+    #action-line { margin-top: 8px; color: #d2d7df; font-size: .83rem; line-height: 1.45; }
+    #status { margin-top: 10px; color: #8f9aa6; font-size: .84rem; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .side { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel:last-child { grid-column: 1 / -1; } }
+    @media (max-width: 580px) { body { padding: 20px 13px 30px; } .side { grid-template-columns: 1fr; } .panel:last-child { grid-column: auto; } .toolbar { width: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="eyebrow">Mission replay · Mars · Seed 42</div>
+      <h1>The rover meets the storm</h1>
+      <p>A sol is one simulated rover day. Scrub the 30-day run to see its decisions and planet-wide dust storm.</p>
+    </div>
+    <div class="toolbar">
+      <button id="restart" type="button">↺ Restart</button>
+      <button id="play" class="primary" type="button">▶ Play</button>
+      <label><input id="truth" type="checkbox"> Reveal ground truth</label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="map-shell" aria-label="Planet replay map">
+      <div class="scrubber">
+        <strong>Sol · one simulated rover day</strong>
+        <input id="sol" type="range" min="0" max="30" value="0" step="1" aria-label="Choose replay sol">
+        <output id="sol-label" for="sol">0 / 30</output>
+      </div>
+      <canvas id="planet" width="760" height="760" aria-label="Mars terrain and rover path"></canvas>
+      <div id="status">Loading the seed-42 mission replay…</div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>Rover telemetry</h2>
+        <div class="stats">
+          <div class="stat"><span>Position</span><strong id="position">—</strong></div>
+          <div class="stat"><span>Battery</span><strong id="battery">—</strong></div>
+          <div class="stat"><span>Wheel health</span><strong id="wheel">—</strong></div>
+          <div class="stat"><span>Panel dust</span><strong id="dust">—</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Atmosphere</h2>
+        <div class="weather">
+          <strong id="weather-state">—</strong>
+          <span id="weather-badge" class="badge">Global tau —</span>
+        </div>
+        <div id="weather-copy" class="weather-copy">—</div>
+        <div class="stat" style="margin-top:10px"><span>Action this sol</span><div id="action-line">—</div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Mission events</h2>
+        <ul id="events" class="feed"><li class="empty">No events yet.</li></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Map legend</h2>
+        <div class="legend">
+          <div class="key"><i class="swatch" style="--color:#b7875e"></i>Regolith</div>
+          <div class="key"><i class="swatch" style="--color:#e3bd72"></i>Sand</div>
+          <div class="key"><i class="swatch" style="--color:#7b6a62"></i>Rocks</div>
+          <div class="key"><i class="swatch" style="--color:#654f55"></i>Crater rim</div>
+          <div class="key"><i class="swatch" style="--color:#f7f0a6"></i>Science</div>
+          <div class="key"><i class="swatch" style="--color:#65e7d0"></i>Rover path</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module">
+    import { drawPlanet } from "./map.js";
+
+    const canvas = document.querySelector("#planet");
+    const slider = document.querySelector("#sol");
+    const playButton = document.querySelector("#play");
+    const truthToggle = document.querySelector("#truth");
+    const eventColors = { info: "#55d6be", minor: "#ffd166", major: "#ff8c42", critical: "#ff4d6d" };
+    let replay = null;
+    let timer = null;
+
+    function render() {
+      if (!replay) return;
+      const index = Math.min(Number(slider.value), replay.frames.length - 1);
+      const frame = replay.frames[index];
+      const peak = replay.snapshot.storms?.[0]?.start_sol;
+      document.querySelector("#sol-label").textContent = `${frame.sol} / ${replay.max_sols}`;
+      document.querySelector("#position").textContent = `(${frame.pos[0]}, ${frame.pos[1]})`;
+      document.querySelector("#battery").textContent = `${Number(frame.battery).toFixed(1)}%`;
+      document.querySelector("#wheel").textContent = `${Math.round(frame.wheel_health * 100)}%`;
+      document.querySelector("#dust").textContent = `${Math.round(frame.panel_dust * 100)}%`;
+
+      const tau = Number(frame.tau);
+      const active = tau > 2;
+      const building = !active && frame.tau_trend > 0.25;
+      const weatherName = active ? "Dust storm" : building ? "Dust building" : "Clear air";
+      const badge = document.querySelector("#weather-badge");
+      document.querySelector("#weather-state").textContent = weatherName;
+      badge.textContent = `Planet-wide · tau ${tau.toFixed(2)}`;
+      badge.classList.toggle("storm", active);
+      document.querySelector("#weather-copy").textContent = active
+        ? `The storm is atmospheric and covers the whole map. Solar input is reduced at every location. Tau trend: ${frame.tau_trend >= 0 ? "+" : ""}${Number(frame.tau_trend).toFixed(2)}.`
+        : building
+          ? `Dust opacity is rising before the forecast peak at sol ${peak}. Tau trend: +${Number(frame.tau_trend).toFixed(2)}.`
+          : `Tau is the rover's current planetary dust-opacity reading. Forecast peak: sol ${peak}.`;
+
+      const actionLine = frame.actions.length
+        ? frame.actions.map((action) => `${action.tool}${action.args.direction ? ` ${action.args.direction}` : ""}${action.args.steps ? ` ×${action.args.steps}` : ""} ${action.ok ? "✓" : "·"}`).join(" → ")
+        : "Mission start";
+      document.querySelector("#action-line").textContent = actionLine;
+
+      const eventList = document.querySelector("#events");
+      eventList.replaceChildren();
+      const latestEvents = [...frame.events].reverse().slice(0, 12);
+      if (!latestEvents.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No events yet.";
+        eventList.append(empty);
+      } else {
+        for (const event of latestEvents) {
+          const item = document.createElement("li");
+          item.style.setProperty("--event-color", eventColors[event.severity] || eventColors.info);
+          const time = document.createElement("time");
+          time.textContent = `Sol ${event.sol}`;
+          const label = document.createElement("span");
+          label.textContent = `${event.type.replaceAll("_", " ")} at (${event.pos[0]}, ${event.pos[1]})`;
+          item.append(time, label);
+          eventList.append(item);
+        }
+      }
+
+      drawPlanet(canvas, replay.snapshot, {
+        path: frame.path,
+        roverPos: frame.pos,
+        knownTiles: frame.known_tiles,
+        events: frame.events,
+        showTruth: truthToggle.checked,
+        weatherTau: frame.tau,
+      });
+      slider.setAttribute("aria-valuetext", `Sol ${frame.sol}${active ? ", dust storm active" : ""}`);
+    }
+
+    function stop() {
+      if (timer) window.clearInterval(timer);
+      timer = null;
+      playButton.textContent = "▶ Play";
+    }
+
+    function play() {
+      if (!replay) return;
+      if (Number(slider.value) >= replay.frames.length - 1) slider.value = "0";
+      stop();
+      playButton.textContent = "Ⅱ Pause";
+      timer = window.setInterval(() => {
+        if (Number(slider.value) >= replay.frames.length - 1) {
+          stop();
+          return;
+        }
+        slider.value = String(Number(slider.value) + 1);
+        render();
+      }, 650);
+      render();
+    }
+
+    slider.addEventListener("input", () => { stop(); render(); });
+    truthToggle.addEventListener("change", render);
+    playButton.addEventListener("click", () => timer ? stop() : play());
+    document.querySelector("#restart").addEventListener("click", () => { stop(); slider.value = "0"; render(); });
+
+    fetch("../../fixtures/replay_seed42_greedy.json")
+      .then((response) => {
+        if (!response.ok) throw new Error(`Replay request failed (${response.status})`);
+        return response.json();
+      })
+      .then((data) => {
+        replay = data;
+        slider.max = String(data.frames.length - 1);
+        slider.value = "0";
+        document.querySelector("#status").textContent = `${data.frames.length - 1} sols · ${data.metrics.science} science · ${data.metrics.stuck_sols} sols stuck · deterministic ${data.policy} policy`;
+        render();
+      })
+      .catch((error) => { document.querySelector("#status").textContent = `${error.message}. Regenerate with python3 -m sim.replay from the repository root.`; });
+  </script>
+</body>
+</html>
