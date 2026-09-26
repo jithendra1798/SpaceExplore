@@ -11,11 +11,11 @@ Workstreams: **A** Planet Sim · **B** Explorer + Harness Runtime · **C** Engin
 
 | ID | Consumer | Needs | Provider | Contract | Needed by | Stub until delivered | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| D01 | B, C, D | `contracts/models.py` | B | §3.1 | 2:15 | Copy the shapes from CONTRACTS.md | Open | |
-| D02 | B, C | `pyproject.toml`, `.env.example`, `db/client.py` with `get_db()` | D | §1, §5.1 | 2:20 | Plain `pymongo.MongoClient(os.environ["MONGODB_URI"])` | Open | |
+| D01 | B, C, D | `contracts/models.py` | B | §3.1 | 2:15 | Copy the shapes from CONTRACTS.md | Delivered | 2:40 PM. Also includes `HarnessConfig`, `HarnessPatch`, `EventDoc` and `load_harness_v1()` |
+| D02 | B, C | `pyproject.toml`, `.env.example`, `db/client.py` with `get_db()` | D | §1, §5.1 | 2:20 | Plain `pymongo.MongoClient(os.environ["MONGODB_URI"])` | Delivered | 2:40 PM, pushed by B to unblock the team; D owns these files from now on |
 | D03 | D | Sample world snapshot `fixtures/snapshot.json` | A | §2.4 | 2:30 | Random terrain grid generated in JS | Open | |
 | D04 | C | Harness v1 seeded in Atlas | D | §3.2 | 2:30 | Load the JSON in CONTRACTS §3.2 from a file | Open | |
-| D05 | C | `contracts/scoring.py` and `contracts/constitution.py` | C | §3.5, §3.6 | 2:20 | n/a (C owns both) | Open | B and D import `score()` |
+| D05 | C | `contracts/scoring.py` and `contracts/constitution.py` | C | §3.5, §3.6 | 2:20 | n/a (C owns both) | Delivered | 2:40 PM, pushed by B. Includes `check_patch()` (C2) and `accept()` (C3); C owns these files from now on |
 | D06 | B | `World` API: `observe`, `step`, `action_cost`, `metrics`, `snapshot` | A | §2 | 3:15 | `explorer/fake_world.py`: open grid, one sand tile, one storm | Open | |
 | D07 | B | Memory helpers: `add_memory`, `search_memories`, `embed` | D | §5.1 | 3:15 | Insert without embedding; retrieve newest K by `kind` | Open | Record the embedding model and dimension in the change log |
 | D08 | B | `hazards_near()` using `$geoNear` | D | §5.1 | 3:15 | Filter an in-memory list of known hazards | Open | |
@@ -46,3 +46,7 @@ Add a row **before** you push any change to [CONTRACTS.md](CONTRACTS.md) or `con
 | Time | Who | Change | Affects |
 | --- | --- | --- | --- |
 | 1:50 PM | Planning | Initial contracts | All |
+| 2:40 PM | B | `DIRECTIONS` in `contracts/models.py`: north is y − 1, so N = (0, −1) and E = (1, 0) | A, B, D |
+| 2:40 PM | B | `HarnessPatch` gains optional `diagnosis` and `reason` (why a patch was invalid or rejected) | C, D |
+| 2:40 PM | B | `EventDoc` model: a `SimEvent` plus `mission_id`, `mode`, `harness_version`, `ts` | B, C, D |
+| 2:40 PM | B | `fixtures/incident.json` added from CONTRACTS §5.2 | C |

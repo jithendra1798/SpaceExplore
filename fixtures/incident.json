@@ -1,0 +1,11 @@
+{
+  "mission_id": "m_1790445600_42_live",
+  "mode": "live",
+  "harness_version": 1,
+  "sol": 8,
+  "type": "STUCK",
+  "severity": "major",
+  "pos": [12, 20],
+  "details": {"terrain": "sand", "slip": 0.8, "action": {"tool": "move", "args": {"direction": "E", "steps": 4}}},
+  "ts": "2026-09-26T19:02:11Z"
+}

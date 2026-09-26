@@ -20,10 +20,16 @@ An **Explorer** agent drives a rover across a simulated planet with sand traps, 
 | Workstream | Owner | Brief |
 | --- | --- | --- |
 | A · Planet Simulator | _TBD_ | [A-planet-sim.md](docs/workstreams/A-planet-sim.md) |
-| B · Explorer Agent + Harness Runtime | _TBD_ | [B-explorer-harness.md](docs/workstreams/B-explorer-harness.md) |
+| B · Explorer Agent + Harness Runtime | Jithendra | [B-explorer-harness.md](docs/workstreams/B-explorer-harness.md) |
 | C · Engineer Agent + Evaluation | _TBD_ | [C-engineer-eval.md](docs/workstreams/C-engineer-eval.md) |
 | D · MongoDB Atlas + UI + Demo | _TBD_ | [D-atlas-ui-demo.md](docs/workstreams/D-atlas-ui-demo.md) |
 
 ## Setup
 
-_Coming at 2:20 PM with `pyproject.toml` and `.env.example` (workstream D)._
+```bash
+uv sync                      # installs deps into .venv
+cp .env.example .env         # fill in MONGODB_URI (hackathon sandbox), ANTHROPIC_API_KEY, VOYAGE_API_KEY
+uv run python -c "from contracts import load_harness_v1; print(load_harness_v1().enabled_tools())"
+```
+
+Run modules from the repo root with `uv run python -m <package>.<module>`. Shared types live in `contracts/`.
